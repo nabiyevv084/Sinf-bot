@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, date
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters, JobQueue
 
 BOT_TOKEN = "8655610690:AAE6tn9Gpn3Yzk_O8pnoJZytq43o_bNE42k"
 GURUH_ID = -1001757184098
@@ -40,19 +40,29 @@ async def xabar_qayd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data[bugun()][uid]["oxirgi"] = datetime.now().strftime("%H:%M")
     save_data(data)
 
-async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def hisobot_yuborish(context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     bugungi = data.get(bugun(), {})
     if not bugungi:
-        await update.message.reply_text("Bugun hech kim yozmagan!")
-        return
-    matn = f"📊 {bugun()} — Faollik:\n\n"
-    for i, k in enumerate(sorted(bugungi.values(), key=lambda x: x['son'], reverse=True), 1):
-        matn += f"{i}. {k['ism']} — {k['vaqt']}dan {k['oxirgi']}gacha — {k['son']} xabar\n"
-    matn += f"\nJami: {len(bugungi)} kishi yozdi"
-    await update.message.reply_text(matn)
+        matn = "📊 Bugun hech kim yozmadi!"
+    else:
+        matn = f"📊 {bugun()} — Faollik:\n\n"
+        for i, k in enumerate(sorted(bugungi.values(), key=lambda x: x['son'], reverse=True), 1):
+            matn += f"{i}. {k['ism']} — {k['vaqt']}dan {k['oxirgi']}gacha — {k['son']} xabar\n"
+        matn += f"\nJami: {len(bugungi)} kishi yozdi"
+    await context.bot.send_message(chat_id=GURUH_ID, text=matn)
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await hisobot_yuborish(context)
+
+async def post_init(app):
+    app.job_queue.run_daily(
+        hisobot_yuborish,
+        time=datetime.strptime("15:00", "%H:%M").time(),
+        days=(0, 1, 2, 3, 4, 5, 6)
+    )
+
+app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, xabar_qayd))
 app.add_handler(CommandHandler("hisobot", hisobot))
 print("Bot ishga tushdi!")
