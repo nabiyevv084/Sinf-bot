@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 import yt_dlp
 
-BOT_TOKEN = "8655610690:AAE6tn9Gpn3Yzk_O8pnoJZytq43o_bNE42k"
+BOT_TOKEN = AAH6QNsnqi-DENksC_7fvpC6CB7wHJN2jYA
 GURUH_ID = -1001757184098
 DATA_FILE = "faollik.json"
 
