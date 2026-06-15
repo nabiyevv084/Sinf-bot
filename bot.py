@@ -4,6 +4,7 @@ import os
 from datetime import datetime, date
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
+import yt_dlp
 
 BOT_TOKEN = "8655610690:AAE6tn9Gpn3Yzk_O8pnoJZytq43o_bNE42k"
 GURUH_ID = -1001757184098
@@ -26,19 +27,41 @@ def bugun():
 
 async def xabar_qayd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
-    if not msg or msg.chat.id != GURUH_ID:
+    if not msg:
         return
     user = msg.from_user
     ism = f"{user.first_name or ''} {user.last_name or ''}".strip()
-    data = load_data()
-    if bugun() not in data:
-        data[bugun()] = {}
-    uid = str(user.id)
-    if uid not in data[bugun()]:
-        data[bugun()][uid] = {"ism": ism, "vaqt": datetime.now().strftime("%H:%M"), "son": 0}
-    data[bugun()][uid]["son"] += 1
-    data[bugun()][uid]["oxirgi"] = datetime.now().strftime("%H:%M")
-    save_data(data)
+
+    # Guruh faolligini qayd qilish
+    if msg.chat.id == GURUH_ID:
+        data = load_data()
+        if bugun() not in data:
+            data[bugun()] = {}
+        uid = str(user.id)
+        if uid not in data[bugun()]:
+            data[bugun()][uid] = {"ism": ism, "vaqt": datetime.now().strftime("%H:%M"), "son": 0}
+        data[bugun()][uid]["son"] += 1
+        data[bugun()][uid]["oxirgi"] = datetime.now().strftime("%H:%M")
+        save_data(data)
+
+    # Video yuklash
+    text = msg.text or ""
+    if any(x in text for x in ["instagram.com", "tiktok.com", "youtu.be", "youtube.com"]):
+        await msg.reply_text("⏳ Video yuklanmoqda, kuting...")
+        try:
+            ydl_opts = {
+                'format': 'best[ext=mp4]/best',
+                'outtmpl': 'video.%(ext)s',
+                'quiet': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(text.strip(), download=True)
+                filename = ydl.prepare_filename(info)
+            with open(filename, 'rb') as f:
+                await msg.reply_video(f)
+            os.remove(filename)
+        except Exception as e:
+            await msg.reply_text("❌ Video yuklab bo'lmadi. Link to'g'rimi?")
 
 async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
@@ -52,8 +75,21 @@ async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     matn += f"\nJami: {len(bugungi)} kishi yozdi"
     await update.message.reply_text(matn)
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    matn = """👋 Assalomu alaykum!
+
+🤖 Bu bot 2 ta funksiya qiladi:
+
+📊 Sinf faolligi:
+/hisobot — bugungi faollikni ko'rish
+
+🎥 Video yuklash:
+Instagram, TikTok, YouTube linkini yuboring — video yuklab beradi!"""
+    await update.message.reply_text(matn)
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, xabar_qayd))
+app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("hisobot", hisobot))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, xabar_qayd))
 print("Bot ishga tushdi!")
 app.run_polling()
